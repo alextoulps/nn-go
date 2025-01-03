@@ -1,0 +1,29 @@
+package main
+
+import (
+	"github.com/alextoulps/nn-go/pkg/nn"
+)
+
+func main() {
+	net := nn.NewNeuralNet(3, 2, 2, 300, 0.1)
+	for i := 0; i < 10; i++ {
+
+		net.Train([]float64{0.01, 0.1, 0.3}, []float64{0, 1})
+		net.Train([]float64{0.01, 0.1, 0.3}, []float64{0, 1})
+		net.Train([]float64{0.1, 0.91, 0.8}, []float64{1, 0})
+		net.Train([]float64{0.2, 0.91, 0.8}, []float64{1, 0})
+		net.Train([]float64{0.3, 0.91, 0.8}, []float64{1, 0})
+		net.Train([]float64{0.01, 0.11, 0.2}, []float64{0, 1})
+		net.Train([]float64{0.02, 0.14, 0.2}, []float64{0, 1})
+		net.Train([]float64{0.1, 0.91, 0.8}, []float64{1, 0})
+		net.Train([]float64{0.2, 0.91, 0.8}, []float64{1, 0})
+		net.Train([]float64{0.3, 0.91, 0.8}, []float64{1, 0})
+		net.Train([]float64{0.01, 0.11, 0.2}, []float64{0, 1})
+		net.Train([]float64{0.02, 0.14, 0.2}, []float64{0, 1})
+	}
+	// fmt.Println("prediction", net.Predict([]float64{0.01, 0.11, 0.2}, false))
+
+	net = nn.NewNeuralNet(784, 10, 1, 200, 0.08)
+	nn.MnistTrain(net)
+	nn.MnistPredict(net, false)
+}
