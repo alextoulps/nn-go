@@ -16,6 +16,9 @@ func RandomArray(size int, v float64) (data []float64) {
 	data = make([]float64, size)
 	for i := 0; i < size; i++ {
 		data[i] = dist.Rand()
+		if data[i] == 0 {
+			data[i] = 0.001
+		}
 	}
 	return data
 }

@@ -12,7 +12,7 @@ import (
 
 func MnistPredict(net *NeuralNet, softmax bool) {
 	t1 := time.Now()
-	checkFile, _ := os.Open("datasets/mnist_test.csv")
+	checkFile, _ := os.Open("datasets/mnist_test_10.csv")
 	defer checkFile.Close()
 
 	score := 0
@@ -52,7 +52,7 @@ func MnistTrain(net *NeuralNet) {
 	t1 := time.Now()
 
 	for epochs := 0; epochs < 5; epochs++ {
-		testFile, _ := os.Open("datasets/mnist_train.csv")
+		testFile, _ := os.Open("datasets/mnist_train_1000.csv")
 		r := csv.NewReader(bufio.NewReader(testFile))
 		for {
 			record, err := r.Read()
