@@ -23,9 +23,9 @@ func main() {
 		net.Train([]float64{0.01, 0.11, 0.2}, []float64{0, 1})
 		net.Train([]float64{0.02, 0.14, 0.2}, []float64{0, 1})
 	}
-	fmt.Println("prediction", net.Predict([]float64{0.01, 0.11, 0.2}, false))
+	fmt.Println("prediction", net.Predict([]float64{0.01, 0.11, 0.2}))
 
-	net = nn.NewNeuralNet(784, 10, []int{300}, 0.1)
+	net = nn.NewNeuralNet(784, 10, []int{300, 300}, 0.01)
 	nn.MnistTrain(net)
-	nn.MnistPredict(net, true)
+	nn.MnistPredict(net)
 }

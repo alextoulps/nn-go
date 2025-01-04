@@ -38,15 +38,15 @@ func NewNeuralNet(inputs, outputs int, hidden []int, learningRate float64) *Neur
 	}
 	var layers []NeuralLayer
 
-	inputOutputs := outputs
+	nextOutputs := inputs
 	outLayerInputs := outputs
 	if len(hidden) > 0 {
-		inputOutputs = hidden[0]
 		outLayerInputs = hidden[len(hidden)-1]
 	}
-	layers = append(layers, *CreateNeuralLayer(inputOutputs, inputs))
+	//	layers = append(layers, *CreateNeuralLayer(inputOutputs, inputs))
 	for i := 0; i < len(hidden); i++ {
-		layers = append(layers, *CreateNeuralLayer(hidden[i], layers[i].neurons))
+		layers = append(layers, *CreateNeuralLayer(hidden[i], nextOutputs))
+		nextOutputs = hidden[i]
 	}
 
 	layers = append(layers, *CreateNeuralLayer(outputs, outLayerInputs))
@@ -56,49 +56,32 @@ func NewNeuralNet(inputs, outputs int, hidden []int, learningRate float64) *Neur
 
 func (n *NeuralNet) Train(in []float64, actual []float64) {
 	rand.Seed(uint64(time.Now().UnixNano()))
-	n.input = CreateInputLayer(in)
-
-	result := n.feedForward(n.input.inputs)
-	actualM := mat.NewDense(len(actual), 1, actual)
-	//	fmt.Println("res", result.At(0, 0), "actual", actualM.At(0, 0))
-	outError := MatrixSub(actualM, result)
+	input := mat.NewDense(len(in), 1, in)
+	result := n.feedForward(input)
 
 	// back propagation
+	actualM := mat.NewDense(len(actual), 1, actual)
+	// Error of output layer
+	error := MatrixSub(actualM, result)
 
-	error := outError
 	for i := len(n.hiddenLayers) - 1; i >= 0; i-- {
-
 		layer := &n.hiddenLayers[i]
-
 		derivative := MatrixApply(layer.outputs, layer.activate, false)
 		mulError := MatrixMul(error, derivative)
-		// fmt.Println("inputs", layer.weights.At(0, 0), "bias", layer.bias.At(0, 0), "idx", i)
 		costProd := MatrixProduct(mulError, layer.inputs.T())
 		layer.bias = MatrixAdd(layer.bias, MatrixScale(n.learningRate, error)).(*mat.Dense)
+		errorScale := MatrixScale(n.learningRate, costProd)
+
 		error = MatrixProduct(layer.weights.T(), error)
-		layer.weights = MatrixAdd(layer.weights, MatrixScale(n.learningRate, costProd)).(*mat.Dense)
-
-		// fmt.Println("inputs", layer.weights.At(0, 0), "idx", i)
-		// layerInput := MatrixProduct(layer.weights, layer.inputs)
-		// layerInput = MatrixAdd(layerInput, layer.bias)
-		// correctedOut := MatrixApply(layerInput, layer.activate, true).(*mat.Dense)
-
-		// fmt.Println("error", error)
-		// fmt.Println("cout", correctedOut)
-
-		// layer.outputs = correctedOut
-		// layer.inputs = layerInput.(*mat.Dense)
+		layer.weights = MatrixAdd(layer.weights, errorScale).(*mat.Dense)
 	}
 }
 
-func (n *NeuralNet) Predict(in []float64, softmax bool) []float64 {
-	n.input = CreateInputLayer(in)
-	resultMatrix := n.feedForward(n.input.inputs)
-	result := mat.Col(nil, 0, resultMatrix)
-	if softmax {
-		return SoftMax(result)
-	}
-	return result
+func (n *NeuralNet) Predict(in []float64) mat.Matrix {
+	input := mat.NewDense(len(in), 1, in)
+
+	resultMatrix := n.feedForward(input)
+	return resultMatrix
 }
 
 func (n *NeuralNet) feedForward(input *mat.Dense) *mat.Dense {
@@ -106,19 +89,12 @@ func (n *NeuralNet) feedForward(input *mat.Dense) *mat.Dense {
 	for i := 0; i < len(n.hiddenLayers); i++ {
 		layer := &n.hiddenLayers[i]
 		layer.inputs = next
-		// fmt.Println("inputs", layer.inputs)
 		layerInput := MatrixProduct(layer.weights, next)
 		layerInput = MatrixAdd(layerInput, layer.bias)
-		// fmt.Println("linput", layerInput)
 		next = MatrixApply(layerInput, layer.activate, true).(*mat.Dense)
 		layer.outputs = next
-		// r, c := next.Dims()
-		// fmt.Println("outputs", next, "row", r, "column", c)
-		// fmt.Println("kayer w", layer.weights)
-		// fmt.Println("klayer b", layer.bias)
 	}
-
-	return next
+	return SoftMax(next)
 }
 
 func (n *NeuralNet) DebugPrint() {
@@ -132,7 +108,7 @@ func (n *NeuralNet) DebugPrint() {
 func CreateNeuralLayer(neurons, inputs int) *NeuralLayer {
 	return &NeuralLayer{
 		neurons:  neurons,
-		activate: new(Sigmoid),
+		activate: new(Relu),
 		weights:  mat.NewDense(neurons, inputs, RandomArray(neurons*inputs, float64(inputs))),
 		bias:     mat.NewDense(neurons, 1, ZeroPointOneArray(neurons)),
 	}
@@ -148,12 +124,6 @@ func (l *NeuralLayer) DebugPrint() {
 	fmt.Println(bfa)
 }
 
-func CreateInputLayer(inputs []float64) *InputLayer {
-	return &InputLayer{
-		inputs: mat.NewDense(len(inputs), 1, inputs),
-	}
-}
-
 type ActivationFunction interface {
 	activate(x float64) float64
 	derivative(x float64) float64
@@ -162,14 +132,14 @@ type ActivationFunction interface {
 type Relu struct{}
 
 func (r *Relu) activate(x float64) float64 {
-	return math.Max(x, 0.00001)
+	return math.Max(x, 0)
 }
 
 func (r *Relu) derivative(x float64) float64 {
 	if x > 0 {
 		return 1
 	}
-	return 0.00001
+	return 0
 }
 
 type Sigmoid struct{}
@@ -182,25 +152,18 @@ func (s *Sigmoid) derivative(x float64) float64 {
 	return x * (1 - x)
 }
 
-func SoftMax(logits []float64) []float64 {
-	maxLogit := logits[0]
-	for _, logit := range logits {
-		if logit > maxLogit {
-			maxLogit = logit
-		}
+func SoftMax(matrix *mat.Dense) *mat.Dense {
+	var sum float64
+	// Calculate the sum
+	for _, v := range matrix.RawMatrix().Data {
+		sum += math.Exp(v)
 	}
 
-	expValues := make([]float64, len(logits))
-	var expSum float64
-	for i, logit := range logits {
-		expValues[i] = math.Exp(logit - maxLogit) // Subtract max for stability
-		expSum += expValues[i]
-	}
+	resultMatrix := mat.NewDense(matrix.RawMatrix().Rows, matrix.RawMatrix().Cols, nil)
+	// Calculate softmax value for each element
+	resultMatrix.Apply(func(i int, j int, v float64) float64 {
+		return math.Exp(v) / sum
+	}, matrix)
 
-	probabilities := make([]float64, len(logits))
-	for i, expValue := range expValues {
-		probabilities[i] = expValue / expSum
-	}
-
-	return probabilities
+	return resultMatrix
 }

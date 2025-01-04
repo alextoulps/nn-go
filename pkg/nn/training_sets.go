@@ -8,9 +8,11 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"gonum.org/v1/gonum/mat"
 )
 
-func MnistPredict(net *NeuralNet, softmax bool) {
+func MnistPredict(net *NeuralNet) {
 	t1 := time.Now()
 	checkFile, _ := os.Open("datasets/mnist_test_10.csv")
 	defer checkFile.Close()
@@ -27,7 +29,8 @@ func MnistPredict(net *NeuralNet, softmax bool) {
 			x, _ := strconv.ParseFloat(record[i+1], 64)
 			inputs[i] = (x / 255.0 * 0.999) + 0.001
 		}
-		outputs := net.Predict(inputs, softmax)
+		outputsResult := net.Predict(inputs)
+		outputs := mat.Col(nil, 0, outputsResult)
 		best := 0
 		highest := 0.0
 		for i := 0; i < len(outputs); i++ {
