@@ -137,7 +137,7 @@ func (r *Relu) activate(x float64) float64 {
 
 func (r *Relu) derivative(x float64) float64 {
 	if x > 0 {
-		return 1
+		return x
 	}
 	return 0
 }
