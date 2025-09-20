@@ -1,0 +1,12 @@
+# Deep Neural Network Configuration Example
+
+# Training parameters
+epochs: 2
+learning_rate: 0.01
+
+# Deep network with 5 hidden layers
+hidden_layers: [512, 256, 128, 64, 32]
+
+# Dataset parameters
+train_samples: 200
+test_samples: 10

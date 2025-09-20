@@ -1,1 +1,9 @@
+# Dataset files
 /datasets
+*.csv
+
+# Binary
+nn-go
+
+# Trained models
+*.bin

@@ -1,0 +1,12 @@
+# Neural Network Configuration
+
+# Training parameters
+epochs: 3
+learning_rate: 0.01
+
+# Network architecture - hidden layer sizes (can have any number of layers)
+hidden_layers: [100, 50]
+
+# Dataset parameters
+train_samples: 500
+test_samples: 20

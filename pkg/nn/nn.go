@@ -22,12 +22,13 @@ type InputLayer struct {
 }
 
 type NeuralLayer struct {
-	weights  *mat.Dense
-	bias     *mat.Dense
-	outputs  *mat.Dense
-	inputs   *mat.Dense
-	activate ActivationFunction
-	neurons  int
+	weights     *mat.Dense
+	bias        *mat.Dense
+	outputs     *mat.Dense
+	inputs      *mat.Dense
+	preActivation *mat.Dense
+	activate    ActivationFunction
+	neurons     int
 }
 
 func NewNeuralNet(inputs, outputs int, hidden []int, learningRate float64) *NeuralNet {
@@ -66,13 +67,28 @@ func (n *NeuralNet) Train(in []float64, actual []float64) {
 
 	for i := len(n.hiddenLayers) - 1; i >= 0; i-- {
 		layer := &n.hiddenLayers[i]
-		derivative := MatrixApply(layer.outputs, layer.activate, false)
+
+		// Compute derivative using pre-activation values
+		var derivative *mat.Dense
+		if i == len(n.hiddenLayers)-1 && n.outputs > 1 {
+			// For output layer with softmax, handle derivative differently
+			// Softmax derivative is handled implicitly in the error calculation
+			derivative = mat.NewDense(layer.preActivation.RawMatrix().Rows, layer.preActivation.RawMatrix().Cols, nil)
+			derivative.Apply(func(i, j int, v float64) float64 { return 1.0 }, layer.preActivation)
+		} else {
+			// Use pre-activation values for derivative calculation
+			derivative = MatrixApply(layer.preActivation, layer.activate, false).(*mat.Dense)
+		}
+
 		mulError := MatrixMul(error, derivative)
 		costProd := MatrixProduct(mulError, layer.inputs.T())
-		layer.bias = MatrixAdd(layer.bias, MatrixScale(n.learningRate, error)).(*mat.Dense)
+
+		// Update bias using the weighted error (mulError)
+		layer.bias = MatrixAdd(layer.bias, MatrixScale(n.learningRate, mulError)).(*mat.Dense)
 		errorScale := MatrixScale(n.learningRate, costProd)
 
-		error = MatrixProduct(layer.weights.T(), error)
+		// Propagate error to previous layer
+		error = MatrixProduct(layer.weights.T(), mulError)
 		layer.weights = MatrixAdd(layer.weights, errorScale).(*mat.Dense)
 	}
 }
@@ -91,10 +107,15 @@ func (n *NeuralNet) feedForward(input *mat.Dense) *mat.Dense {
 		layer.inputs = next
 		layerInput := MatrixProduct(layer.weights, next)
 		layerInput = MatrixAdd(layerInput, layer.bias)
+		layer.preActivation = layerInput.(*mat.Dense)
 		next = MatrixApply(layerInput, layer.activate, true).(*mat.Dense)
 		layer.outputs = next
 	}
-	return SoftMax(next)
+	// Apply softmax only to final output for multi-class classification
+	if n.outputs > 1 {
+		return SoftMax(next)
+	}
+	return next
 }
 
 func (n *NeuralNet) DebugPrint() {
@@ -124,6 +145,27 @@ func (l *NeuralLayer) DebugPrint() {
 	fmt.Println(bfa)
 }
 
+// Getter methods for accessing neural network properties
+func (n *NeuralNet) GetInputs() int {
+	return n.inputs
+}
+
+func (n *NeuralNet) GetOutputs() int {
+	return n.outputs
+}
+
+func (n *NeuralNet) GetLearningRate() float64 {
+	return n.learningRate
+}
+
+func (n *NeuralNet) GetHiddenLayers() []int {
+	layers := make([]int, len(n.hiddenLayers))
+	for i, layer := range n.hiddenLayers {
+		layers[i] = layer.neurons
+	}
+	return layers
+}
+
 type ActivationFunction interface {
 	activate(x float64) float64
 	derivative(x float64) float64
@@ -137,7 +179,7 @@ func (r *Relu) activate(x float64) float64 {
 
 func (r *Relu) derivative(x float64) float64 {
 	if x > 0 {
-		return x
+		return 1
 	}
 	return 0
 }
@@ -149,7 +191,9 @@ func (s *Sigmoid) activate(x float64) float64 {
 }
 
 func (s *Sigmoid) derivative(x float64) float64 {
-	return x * (1 - x)
+	// x should be the pre-activation value
+	activated := s.activate(x)
+	return activated * (1 - activated)
 }
 
 func SoftMax(matrix *mat.Dense) *mat.Dense {

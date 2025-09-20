@@ -25,7 +25,7 @@ func main() {
 	}
 	fmt.Println("prediction", net.Predict([]float64{0.01, 0.11, 0.2}))
 
-	net = nn.NewNeuralNet(784, 10, []int{300, 300}, 0.01)
+	net = nn.NewNeuralNet(784, 10, []int{100, 50}, 0.01)
 	nn.MnistTrain(net)
 	nn.MnistPredict(net)
 }

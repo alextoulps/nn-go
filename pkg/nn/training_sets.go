@@ -13,17 +13,37 @@ import (
 )
 
 func MnistPredict(net *NeuralNet) {
+	MnistPredictWithParams(net, 10)
+}
+
+func MnistPredictWithParams(net *NeuralNet, testSamples int) {
 	t1 := time.Now()
-	checkFile, _ := os.Open("datasets/mnist_test_10.csv")
+
+	filename := fmt.Sprintf("datasets/mnist_test_%d.csv", testSamples)
+	if testSamples > 100 {
+		filename = "datasets/mnist_test.csv"
+	}
+
+	checkFile, err := os.Open(filename)
+	if err != nil {
+		fmt.Printf("Error opening test file: %v\n", err)
+		return
+	}
 	defer checkFile.Close()
 
 	score := 0
+	count := 0
 	r := csv.NewReader(bufio.NewReader(checkFile))
 	for {
 		record, err := r.Read()
 		if err == io.EOF {
 			break
 		}
+		if count >= testSamples {
+			break
+		}
+		count++
+
 		inputs := make([]float64, net.inputs)
 		for i := range inputs {
 			x, _ := strconv.ParseFloat(record[i+1], 64)
@@ -40,27 +60,54 @@ func MnistPredict(net *NeuralNet) {
 			}
 		}
 		target, _ := strconv.Atoi(record[0])
-		fmt.Println("target", target, "correct", best == target, "pred", outputs, "highest", best)
+		fmt.Printf("[%d/%d] target: %d, predicted: %d, correct: %v\n", count, testSamples, target, best, best == target)
 		if best == target {
 			score++
 		}
 	}
 
 	elapsed := time.Since(t1)
-	fmt.Printf("Time taken to check: %s\n", elapsed)
-	fmt.Println("score:", score)
+	fmt.Printf("\nTest Results:\n")
+	fmt.Printf("  Time taken: %s\n", elapsed)
+	fmt.Printf("  Correct: %d/%d\n", score, count)
+	fmt.Printf("  Accuracy: %.2f%%\n", float64(score)/float64(count)*100)
 }
 
 func MnistTrain(net *NeuralNet) {
+	MnistTrainWithParams(net, 2, 1000)
+}
+
+func MnistTrainWithParams(net *NeuralNet, epochs int, trainSamples int) {
 	t1 := time.Now()
 
-	for epochs := 0; epochs < 5; epochs++ {
-		testFile, _ := os.Open("datasets/mnist_train_1000.csv")
+	filename := fmt.Sprintf("datasets/mnist_train_%d.csv", trainSamples)
+	if trainSamples > 1000 {
+		filename = "datasets/mnist_train.csv"
+	}
+
+	for epoch := 0; epoch < epochs; epoch++ {
+		fmt.Printf("Epoch %d/%d\n", epoch+1, epochs)
+
+		testFile, err := os.Open(filename)
+		if err != nil {
+			fmt.Printf("Error opening training file: %v\n", err)
+			return
+		}
+
+		count := 0
 		r := csv.NewReader(bufio.NewReader(testFile))
 		for {
 			record, err := r.Read()
 			if err == io.EOF {
 				break
+			}
+			if count >= trainSamples {
+				break
+			}
+			count++
+
+			if count%100 == 0 {
+				fmt.Printf("  Training sample %d/%d\n", count, trainSamples)
 			}
 
 			inputs := make([]float64, net.inputs)
@@ -81,5 +128,8 @@ func MnistTrain(net *NeuralNet) {
 		testFile.Close()
 	}
 	elapsed := time.Since(t1)
-	fmt.Printf("\nTime taken to train: %s\n", elapsed)
+	fmt.Printf("\nTraining completed:\n")
+	fmt.Printf("  Time taken: %s\n", elapsed)
+	fmt.Printf("  Epochs: %d\n", epochs)
+	fmt.Printf("  Samples per epoch: %d\n", trainSamples)
 }
